@@ -16,7 +16,7 @@ class Game:
         self.player = None
         self.difficulty = difficulty
         self.enemies = []
-        self.lives = 3 
+        self.lives = 10 - difficulty 
         self.points = 0
         self.lost = False
         Game.waring_font = pygame.font.SysFont("Consolas", 50, True)
@@ -24,11 +24,16 @@ class Game:
     def start(self):
         # Crear bucle del juego
         run = True
+        game_over_counter = 0
         self.player = Player(0, 0, F14_TOMCAT_N)
         self.player.x = (Game.resolucion[0] - self.player.width) / 2
         self.player.y = Game.resolucion[1] - self.player.health - 5
 
         while run:
+            # el juego corre a un framerate de 15 cuadros por segundo
+            self.redraw()
+            self.clock.tick(30)
+
             for event in pygame.event.get():
                 run = not event.type == pygame.QUIT
 
@@ -36,13 +41,23 @@ class Game:
             self.spawn_enemies()
             for enemy in self.enemies[:]:
                 if enemy.y > Game.resolucion[1]:
-                    self.enemies.remove(enemy)
+                    self.enemies.remove(enemy) 
                     self.lives -= 1
                 else:
                     enemy.move()
+                    enemy.update_shoots(enemy.seed, self.player)
 
+            self.player.update_shoots(-self.player.seed, self.enemies)
             # logica de perder el juego
-            self.lost = (self.lives < 0)
+            if self.lives <= 0 or self.player.health <= 0:  
+                self.lost = True
+                game_over_counter+=1
+
+            if self.lost:
+                if game_over_counter > 150:
+                    run = False
+                else:
+                    continue
 
             # registrar las teclas presionadas por el usuario
             keys = pygame.key.get_pressed()
@@ -50,10 +65,8 @@ class Game:
                 self.player.x -= self.player.seed
             if keys[pygame.K_d] and self.player.x + 5 < Game.resolucion[0]:
                 self.player.x += self.player.seed
-
-            # el juego corre a un framerate de 15 cuadros por segundo
-            self.redraw()
-            self.clock.tick(30)
+            if keys[pygame.K_SPACE]:
+                self.player.shoot()
 
     def redraw(self):
         # dibujar pantalla
