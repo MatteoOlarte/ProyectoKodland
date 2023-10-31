@@ -1,0 +1,6 @@
+class Player:
+    ...
+
+
+class Enemy:
+    ...
