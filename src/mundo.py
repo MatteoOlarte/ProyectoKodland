@@ -1,11 +1,11 @@
 import elementos
 import pygame
-import random
 from pygame import Surface
 
 
 class Plane:
-    def __init__(self, x, y, image: Surface, health, damage, speed) -> None:
+    def __init__(self, x, y, image: Surface, health, damage, speed, cooldown = 30) -> None:
+        self.max_cooldown = cooldown
         self.x = x
         self.y = y
         self.shoots = []
@@ -17,6 +17,8 @@ class Plane:
         self.MAX_HEALTH = health
         self.height = image.get_height()
         self.width = image.get_width()
+        self.dt_count = 0
+
 
     def draw(self, surface: Surface):
         surface.blit(self.image, (self.x, self.y))
@@ -24,44 +26,75 @@ class Plane:
         for s in self.shoots:
             s.draw(surface)
 
+    def cooldown(self):
+        if self.dt_count >= self.max_cooldown:
+            self.dt_count = 0
+        elif self.dt_count > 0:
+            self.dt_count += 1
+
     def shoot(self):
-        shoot = Bullet(self.x, self.y + 5)
-        self.shoots.append(shoot)
+        if self.dt_count == 0:
+            shoot = Bullet(self.x, self.y)
+            self.shoots.append(shoot)
+            self.dt_count = 1
+
 
     def update_shoots(self, velocity, surface):
+        self.cooldown()
         for bullet in self.shoots:
-            bullet.move(velocity)
+            bullet.move(velocity + 10)
 
-            if bullet.y < 0 or bullet.y > 400:
-                self.lasers.remove(bullet)
-            elif bullet.collision(surface):
-                surface.health -= 10
+            if bullet.y < 0 or bullet.y > 999:
+                self.shoots.remove(bullet)
+            elif bullet.colision(surface) and type(surface) is Player:
+                print(type(surface))
+                surface.health -= self.damage
+                print(surface.health)
                 self.shoots.remove(bullet)
 
 
 class Player(Plane):
+
     def __init__(self, x, y, plane: Plane) -> None:
         Plane.__init__(self, x, y,
                        plane.image,
                        plane.health,
                        plane.damage,
-                       plane.seed)
+                       plane.seed,
+                       plane.max_cooldown)
         self.mask = pygame.mask.from_surface(plane.image)
 
     def update_shoots(self, velocity, enemies):
+        self.cooldown()
         for bullet in self.shoots:
             bullet.move(velocity)
 
-            if bullet.y < 0:
-                ...
-                continue
+            if bullet.y < 0 or bullet.y > 999:
+                self.shoots.remove(bullet)
+            else:
+                for enemy in enemies:
+                    if bullet.colision(enemy):
+                        enemies.remove(enemy)
+                        self.shoots.remove(bullet)
 
-            for enemy in enemies:
-                if bullet.colision(enemy):
+    def draw(self, surface: Surface):
+        super().draw(surface)
+        self.draw_heath_bar(surface)
 
-                    enemies.remove(enemy)
+    def draw_heath_bar(self, surface: Surface):
+        max_height = 5
+        max_width = self.width
+        position_x = self.x
+        position_y = self.y + self.height + 10
+        completed = (self.health * max_width) / self.MAX_HEALTH
 
-            
+        # barra interna
+        pygame.draw.rect(surface, (255, 0, 0), (position_x,
+                         position_y, max_width, max_height))
+
+        # barra externa
+        pygame.draw.rect(surface, (0, 255, 0), (position_x,
+                         position_y, completed, max_height))
 
 
 class Enemy(Plane):
@@ -104,8 +137,8 @@ def is_colliding(obj1, obj2):
 
 
 F14_TOMCAT_N = Plane(0, 0, elementos.F14_NORMAL_IMG, 120, 30, 4)
-F14_TOMCAT_S = Plane(0, 0, elementos.F14_ATTACK_IMG, 120, 30, 4.5)
-F18_SH = Plane(0, 0, elementos.F14_ATTACK_IMG, 200, 35, 5)
+F14_TOMCAT_S = Plane(0, 0, elementos.F14_ATTACK_IMG, 120, 30, 4.5, cooldown=25)
+F18_SH = Plane(0, 0, elementos.F14_ATTACK_IMG, 200, 35, 5.5, cooldown=15)
 
 ENEMY_AIRCRAFT = (
     Plane(0, 0, elementos.ENEMIES['f14-normal'], 120, 30, 4),

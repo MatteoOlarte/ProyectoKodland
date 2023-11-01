@@ -1,5 +1,7 @@
 import pygame
-import elementos
+import random
+import pygame_widgets
+from pygame_widgets.button import Button
 from mundo import *
 
 
@@ -16,18 +18,75 @@ class Game:
         self.player = None
         self.difficulty = difficulty
         self.enemies = []
-        self.lives = 10 - difficulty 
+        self.lives = 10 - difficulty
         self.points = 0
         self.lost = False
         Game.waring_font = pygame.font.SysFont("Consolas", 50, True)
 
-    def start(self):
+    def open_menu(self):
+        run = True
+
+        while run:
+            label = self.waring_font.render("Spacial Wars", True, (0, 0, 0))
+            self.display.fill((255, 255, 255))
+            self.display.blit(
+                label, (self.resolucion[0]/2 - label.get_width()/2, 200))
+
+            # Crear Botones
+            easy_btn = Button(
+                self.display,
+                (self.resolucion[0]/2 - 100),
+                300,
+                200,
+                50,
+                text="Modo Facil",
+                onClick=lambda:self.start(1))
+            
+            medium_btn = Button(
+                self.display,
+                (self.resolucion[0]/2 - 100),
+                400,
+                200,
+                50,
+                text="Modo Normal",
+                onClick=lambda:self.start(2))
+            
+            hard_btn = Button(
+                self.display,
+                (self.resolucion[0]/2 - 100),
+                500,
+                200,
+                50,
+                text="Modo Dificil",
+                onClick=lambda:self.start(3))
+            
+            events = pygame.event.get()
+            for event in events:
+                run = not event.type == pygame.QUIT
+
+            easy_btn.draw()
+            medium_btn.draw()
+            hard_btn.draw()
+            self.clock.tick(60)
+            pygame.display.update()
+            pygame_widgets.update(events)
+        
+
+    def get_player(self):
+        match self.difficulty:
+            case 1: return Player(0, 0, F14_TOMCAT_N)
+            case 2: return Player(0, 0, F14_TOMCAT_S)
+            case 3: return Player(0, 0, F18_SH)
+
+    def start(self, difficulty):
         # Crear bucle del juego
         run = True
         game_over_counter = 0
-        self.player = Player(0, 0, F14_TOMCAT_N)
+        self.difficulty = difficulty
+        self.player = self.get_player()
         self.player.x = (Game.resolucion[0] - self.player.width) / 2
         self.player.y = Game.resolucion[1] - self.player.health - 5
+        print(self.player.cooldown)
 
         while run:
             # el juego corre a un framerate de 15 cuadros por segundo
@@ -40,18 +99,26 @@ class Game:
             # logica del el spawn de enemigos
             self.spawn_enemies()
             for enemy in self.enemies[:]:
+                if random.randrange(0, 4*30) == 1:
+                    enemy.shoot()
+
+                if is_colliding(self.player, enemy):
+                    self.enemies.remove(enemy)
+                    self.player.health -= 5
+
                 if enemy.y > Game.resolucion[1]:
-                    self.enemies.remove(enemy) 
+                    self.enemies.remove(enemy)
                     self.lives -= 1
                 else:
                     enemy.move()
                     enemy.update_shoots(enemy.seed, self.player)
 
             self.player.update_shoots(-self.player.seed, self.enemies)
+
             # logica de perder el juego
-            if self.lives <= 0 or self.player.health <= 0:  
+            if self.lives <= 0 or self.player.health <= 0:
                 self.lost = True
-                game_over_counter+=1
+                game_over_counter += 1
 
             if self.lost:
                 if game_over_counter > 150:
@@ -73,7 +140,7 @@ class Game:
         self.display.fill((0, 0, 0))
 
         # textos de informacion
-        points_label = self.font.render(f"Puntos: 3", 1, (255, 255, 255))
+        points_label = self.font.render(f"Dificultad: {self.difficulty}", 1, (255, 255, 255))
         lives_label = self.font.render(
             f"Vidas: {self.lives}", 1, (255, 255, 255))
 
@@ -110,4 +177,4 @@ class Game:
 
 if __name__ == '__main__':
     g = Game()
-    g.start()
+    g.open_menu()
